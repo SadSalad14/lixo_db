@@ -63,6 +63,16 @@ def init_db():
             criado_em DOUBLE PRECISION NOT NULL
         )
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS pontos_coleta (
+            id SERIAL PRIMARY KEY,
+            nome TEXT NOT NULL,
+            lat DOUBLE PRECISION NOT NULL,
+            lng DOUBLE PRECISION NOT NULL,
+            tipo TEXT,
+            criado_em DOUBLE PRECISION NOT NULL
+        )
+    """)
     conn.commit()
     cur.close()
     conn.close()
@@ -141,8 +151,42 @@ def heatmap():
 
 
 @app.route("/pontos-coleta", methods=["GET"])
-def pontos_coleta():
-    return jsonify({"pontos": PONTOS_COLETA})
+def listar_pontos_coleta():
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT nome, lat, lng, tipo FROM pontos_coleta")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    informados_por_usuarios = [
+        {"nome": nome, "lat": lat, "lng": lng, "tipo": tipo} for (nome, lat, lng, tipo) in rows
+    ]
+
+    return jsonify({"pontos": PONTOS_COLETA + informados_por_usuarios})
+
+
+@app.route("/pontos-coleta", methods=["POST"])
+def criar_ponto_coleta():
+    data = request.get_json(force=True)
+    nome = data.get("nome")
+    lat = data.get("lat")
+    lng = data.get("lng")
+    tipo = data.get("tipo", "outro")
+
+    if not nome or lat is None or lng is None:
+        return jsonify({"erro": "nome, lat e lng são obrigatórios"}), 400
+
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO pontos_coleta (nome, lat, lng, tipo, criado_em) VALUES (%s, %s, %s, %s, %s)",
+        (nome, lat, lng, tipo, time.time()),
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+    return jsonify({"status": "ok"}), 201
 
 
 init_db()
