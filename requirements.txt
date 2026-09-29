@@ -1,0 +1,5 @@
+flask
+scikit-learn
+numpy
+psycopg2-binary
+gunicorn
